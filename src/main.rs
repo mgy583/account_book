@@ -1,6 +1,7 @@
+use tower_http::cors::{CorsLayer, Any};
 use tracing::info;
 use axum::{
-    Json, Router, extract::{State}, http::StatusCode, response::IntoResponse,
+    Json, Router, extract::{State}, http::{StatusCode, header::{HeaderValue, CONTENT_TYPE}}, response::IntoResponse,
     response::Response, routing::get,
     routing::delete,
 };
@@ -38,21 +39,31 @@ impl<E: Into<anyhow::Error>> From<E> for AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let body = axum::Json(self);
-        (StatusCode::INTERNAL_SERVER_ERROR, body).into_response()
+        (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            [(CONTENT_TYPE, HeaderValue::from_static("application/json; charset=utf-8"))],
+            body
+        ).into_response()
     }
 }
 
 //
-async fn list_todos(State(db): State<Arc<Mutex<HashMap<u32, Todo>>>>) -> Json<Vec<Todo>> {
+async fn list_todos(State(db): State<Arc<Mutex<HashMap<u32, Todo>>>>) -> impl IntoResponse {
     info!("GET /todos");
     let db = db.lock().await;
-    Json(db.values().cloned().collect())
+    let todos = db.values().cloned().collect::<Vec<_>>();
+    (
+        StatusCode::OK,
+        [(CONTENT_TYPE, HeaderValue::from_static("application/json; charset=utf-8"))],
+        axum::Json(todos)
+    )
+        .into_response()
 }
 
 async fn create_todo(
     State(db): State<Arc<Mutex<HashMap<u32, Todo>>>>,
     Json(payload): Json<CreateTodo>,
-) -> Result<(StatusCode, Json<Todo>), AppError> {
+    ) -> impl IntoResponse {
     info!("POST /todos");
     let mut db = db.lock().await;
     let id = db.len() as u32 + 1;
@@ -62,7 +73,12 @@ async fn create_todo(
         done: false,
     };
     db.insert(id, todo.clone());
-    Ok((StatusCode::CREATED, Json(todo)))
+    (
+        StatusCode::CREATED,
+        [(CONTENT_TYPE, HeaderValue::from_static("application/json; charset=utf-8"))],
+        axum::Json(todo)
+    )
+        .into_response()
 }
 
 async fn delete_todo(
@@ -87,10 +103,16 @@ async fn main() {
     let db = Arc::new(Mutex::new(HashMap::<u32, _>::new()));
 
 
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods([axum::http::Method::GET, axum::http::Method::POST, axum::http::Method::DELETE])
+        .allow_headers([axum::http::header::CONTENT_TYPE]);
+
     let app = Router::new()
         .route("/todos", get(list_todos).post(create_todo))
         .route("/todos/{id}", delete(delete_todo))
-        .with_state(db);
+        .with_state(db)
+        .layer(cors);
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
