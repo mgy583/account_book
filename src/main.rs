@@ -1,21 +1,14 @@
 use tower_http::cors::{CorsLayer, Any};
 use tracing::info;
 use axum::{
-    Json, Router, extract::{State}, http::{StatusCode, header::{HeaderValue, CONTENT_TYPE}}, response::IntoResponse,
+    Json, Router, extract::{State, Path}, http::{StatusCode, header::{HeaderValue, CONTENT_TYPE}}, response::IntoResponse,
     response::Response, routing::get,
     routing::delete,
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, sync::Arc};
-use tokio::sync::Mutex;
-
-// model definitions
-#[derive(Deserialize, Serialize, Clone, Debug)]
-struct Todo {
-    id: u32,
-    text: String,
-    done: bool,
-}
+use std::sync::Arc;
+mod db;
+use db::{MongoDB};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 struct CreateTodo {
@@ -47,65 +40,66 @@ impl IntoResponse for AppError {
     }
 }
 
-//
-async fn list_todos(State(db): State<Arc<Mutex<HashMap<u32, Todo>>>>) -> impl IntoResponse {
+async fn list_todos(State(db): State<Arc<MongoDB>>) -> Result<impl IntoResponse, AppError> {
     info!("GET /todos");
-    let db = db.lock().await;
-    let todos = db.values().cloned().collect::<Vec<_>>();
-    (
+    let todos = db.get_todos().await?;
+    Ok((
         StatusCode::OK,
-        [(CONTENT_TYPE, HeaderValue::from_static("application/json; charset=utf-8"))],
-        axum::Json(todos)
-    )
-        .into_response()
+        [(
+            CONTENT_TYPE,
+            HeaderValue::from_static("application/json; charset=utf-8"),
+        )],
+        Json(todos),
+    ))
 }
 
 async fn create_todo(
-    State(db): State<Arc<Mutex<HashMap<u32, Todo>>>>,
+    State(db): State<Arc<MongoDB>>,
     Json(payload): Json<CreateTodo>,
-    ) -> impl IntoResponse {
+) -> Result<impl IntoResponse, AppError> {
     info!("POST /todos");
-    let mut db = db.lock().await;
-    let id = db.len() as u32 + 1;
-    let todo = Todo {
-        id,
-        text: payload.text,
-        done: false,
-    };
-    db.insert(id, todo.clone());
-    (
+    let todo = db.create_todo(payload.text).await?;
+    Ok((
         StatusCode::CREATED,
-        [(CONTENT_TYPE, HeaderValue::from_static("application/json; charset=utf-8"))],
-        axum::Json(todo)
-    )
-        .into_response()
+        [(
+            CONTENT_TYPE,
+            HeaderValue::from_static("application/json; charset=utf-8"),
+        )],
+        Json(todo),
+    ))
 }
 
 async fn delete_todo(
-    State(db): State<Arc<Mutex<HashMap<u32, Todo>>>>,
-    axum::extract::Path(id): axum::extract::Path<u32>,
+    State(db): State<Arc<MongoDB>>,
+    Path(id): Path<String>,
 ) -> Result<StatusCode, AppError> {
     info!("DELETE /todos/{}", id);
-    let mut db = db.lock().await;
-    if db.remove(&id).is_some() {
-        Ok(StatusCode::NO_CONTENT)
-    } else {
-        Err(AppError {
-            message: "Todo not found".to_string(),
-        })
-    }
+    let oid = mongodb::bson::oid::ObjectId::parse_str(&id)
+        .map_err(|_| AppError {
+            message: "Invalid ID format".to_string(),
+        })?;
+    
+    db.delete_todo(&oid).await?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 #[tokio::main]
-async fn main() {
+async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
-    // 内存数据库
-    let db = Arc::new(Mutex::new(HashMap::<u32, _>::new()));
 
+    // 初始化 MongoDB
+    let db = MongoDB::new("mongodb://localhost:27017", "todo_app")
+        .await
+        .map_err(|e| anyhow::anyhow!(e))?;
+    let db = Arc::new(db);
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
-        .allow_methods([axum::http::Method::GET, axum::http::Method::POST, axum::http::Method::DELETE])
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::DELETE,
+        ])
         .allow_headers([axum::http::header::CONTENT_TYPE]);
 
     let app = Router::new()
@@ -113,6 +107,9 @@ async fn main() {
         .route("/todos/{id}", delete(delete_todo))
         .with_state(db)
         .layer(cors);
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+    axum::serve(listener, app).await?;
+
+    Ok(())
 }

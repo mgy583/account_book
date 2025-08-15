@@ -2,18 +2,108 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>Rust Todo List 前端</title>
+    <title>Todo List</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 2em; }
-        h1 { color: #2c3e50; }
-        #todo-list { margin-top: 1em; }
-        .todo-item { display: flex; align-items: center; margin-bottom: 0.5em; }
-        .todo-text { flex: 1; }
-        .delete-btn { margin-left: 1em; color: #fff; background: #e74c3c; border: none; padding: 0.2em 0.8em; border-radius: 3px; cursor: pointer; }
-        .delete-btn:hover { background: #c0392b; }
-        #add-form { margin-bottom: 1em; }
-        #add-input { padding: 0.3em; width: 200px; }
-        #add-btn { padding: 0.3em 1em; }
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            margin: 0;
+            background: #f6f8fa;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #2d3436;
+            margin-top: 2.5em;
+            letter-spacing: 2px;
+        }
+        #add-form {
+            margin: 2em 0 1.5em 0;
+            display: flex;
+            gap: 0.5em;
+        }
+        #add-input {
+            padding: 0.6em 1em;
+            width: 240px;
+            border: 1px solid #dfe6e9;
+            border-radius: 5px;
+            font-size: 1em;
+            background: #fff;
+            transition: border 0.2s;
+        }
+        #add-input:focus {
+            border: 1.5px solid #0984e3;
+            outline: none;
+        }
+        #add-btn {
+            padding: 0.6em 1.5em;
+            background: linear-gradient(90deg, #0984e3 60%, #00b894 100%);
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            font-size: 1em;
+            cursor: pointer;
+            box-shadow: 0 2px 8px #0984e31a;
+            transition: background 0.2s, transform 0.1s;
+        }
+        #add-btn:hover {
+            background: linear-gradient(90deg, #00b894 40%, #0984e3 100%);
+            transform: translateY(-2px) scale(1.04);
+        }
+        #todo-list {
+            margin-top: 0.5em;
+            width: 100%;
+            max-width: 420px;
+            display: flex;
+            flex-direction: column;
+            gap: 1em;
+        }
+        .todo-item {
+            display: flex;
+            align-items: center;
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px #636e721a;
+            padding: 1em 1.2em;
+            transition: box-shadow 0.2s, transform 0.1s;
+            position: relative;
+        }
+        .todo-item:hover {
+            box-shadow: 0 4px 16px #636e7233;
+            transform: translateY(-2px) scale(1.01);
+        }
+        .todo-text {
+            flex: 1;
+            font-size: 1.08em;
+            color: #2d3436;
+            word-break: break-all;
+        }
+        .delete-btn {
+            margin-left: 1em;
+            color: #fff;
+            background: linear-gradient(90deg, #e17055 60%, #d63031 100%);
+            border: none;
+            padding: 0.4em 1.1em;
+            border-radius: 5px;
+            font-size: 0.98em;
+            cursor: pointer;
+            box-shadow: 0 1px 4px #d630311a;
+            transition: background 0.2s, transform 0.1s;
+        }
+        .delete-btn:hover {
+            background: linear-gradient(90deg, #d63031 40%, #e17055 100%);
+            transform: scale(1.07);
+        }
+        @media (max-width: 600px) {
+            #add-input, #todo-list {
+                width: 98vw;
+                max-width: 98vw;
+            }
+            .todo-item {
+                padding: 0.8em 0.6em;
+            }
+        }
     </style>
 </head>
 <body>
