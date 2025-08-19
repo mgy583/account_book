@@ -88,7 +88,10 @@ async fn main() -> anyhow::Result<()> {
     tracing_subscriber::fmt::init();
 
     // 初始化 MongoDB
-    let db = MongoDB::new("mongodb://localhost:27017", "todo_app")
+    let db = MongoDB::new(
+        "mongodb://localhost:27017",
+        "todo_app"
+    )
         .await
         .map_err(|e| anyhow::anyhow!(e))?;
     let db = Arc::new(db);

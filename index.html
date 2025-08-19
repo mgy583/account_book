@@ -107,7 +107,7 @@
     </style>
 </head>
 <body>
-    <h1>Rust Todo List</h1>
+    <h1>Todo List</h1>
     <form id="add-form">
         <input id="add-input" type="text" placeholder="输入待办事项..." required />
         <button id="add-btn" type="submit">添加</button>
@@ -122,6 +122,7 @@
         async function fetchTodos() {
             const res = await fetch(API);
             const todos = await res.json();
+            console.log('todos:', todos);
             renderTodos(todos);
         }
 
@@ -134,16 +135,47 @@
             todos.forEach(todo => {
                 const div = document.createElement('div');
                 div.className = 'todo-item';
-                div.innerHTML = `<span class="todo-text">${todo.text}</span>` +
-                    `<button class="delete-btn" data-id="${todo.id}">删除</button>`;
+                // 兼容 _id 和 id 字段
+                let idStr = '';
+                if (todo._id) {
+                    if (typeof todo._id === 'object' && todo._id.$oid) {
+                        idStr = todo._id.$oid;
+                    } else if (typeof todo._id === 'string') {
+                        idStr = todo._id;
+                    }
+                } else if (todo.id) {
+                    if (typeof todo.id === 'object' && todo.id.$oid) {
+                        idStr = todo.id.$oid;
+                    } else if (typeof todo.id === 'string') {
+                        idStr = todo.id;
+                    }
+                }
+                div.innerHTML = `<span class=\"todo-text\">${todo.text}</span>` +
+                    `<button class=\"delete-btn\" data-id=\"${idStr}\" ${!idStr ? 'disabled' : ''}>删除</button>`;
                 listDiv.appendChild(div);
             });
-            document.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.onclick = async () => {
-                    await fetch(`${API}/${btn.dataset.id}`, { method: 'DELETE' });
+            // 用事件委托方式绑定删除事件，防止事件绑定失效
+            listDiv.onclick = async function(e) {
+                if (e.target && e.target.classList.contains('delete-btn')) {
+                    const id = e.target.dataset.id;
+                    console.log('delete id:', id);
+                    alert('点击删除，id: ' + id);
+                    if (!id) {
+                        alert('无效的ID，无法删除');
+                        return;
+                    }
+                    try {
+                        const resp = await fetch(`${API}/${id}`, { method: 'DELETE' });
+                        if (!resp.ok) {
+                            const msg = await resp.text();
+                            alert('删除失败: ' + msg);
+                        }
+                    } catch (e) {
+                        alert('删除请求异常: ' + e);
+                    }
                     fetchTodos();
-                };
-            });
+                }
+            };
         }
 
         form.onsubmit = async e => {

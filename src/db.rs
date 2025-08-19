@@ -48,7 +48,7 @@ impl MongoDB {
             .sort(doc! { "id": 1 })
             .build();
         
-    let mut cursor = collection.find(doc! {}).await.map_err(DBError::MongoError)?;
+        let mut cursor = collection.find(doc! {}).await.map_err(DBError::MongoError)?;
         let mut todos = Vec::new();
         
         while let Some(todo) = cursor.next().await {
