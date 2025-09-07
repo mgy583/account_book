@@ -37,6 +37,7 @@ pub async fn create_account_handler(
     AuthUser(user_id): AuthUser,
     Json(payload): Json<CreateAccount>,
 ) -> Result<Json<Account>, ApiError> {
+    println!("[INFO][create_account_handler] payload: {:?}", payload);
     let account = db.create_account(
         user_id,
         payload.name,
@@ -45,6 +46,7 @@ pub async fn create_account_handler(
         payload.currency,
         payload.remark,
     ).await?;
+    println!("[INFO][create_account_handler] db_account: {:?}", account);
     Ok(Json(account))
 }
 
@@ -52,11 +54,14 @@ pub async fn get_accounts_handler(
     State(db): State<Arc<MongoDB>>,
     AuthUser(user_id): AuthUser,
 ) -> Result<Json<Vec<Account>>, ApiError> {
+    println!("[INFO][get_accounts_handler] user_id: {:?}", user_id);
     let accounts = db.get_accounts_by_user(user_id).await?;
+    println!("[INFO][get_accounts_handler] accounts count: {}", accounts.len());
     Ok(Json(accounts))
 }
 
 pub fn account_routes() -> Router<Arc<MongoDB>> {
+    println!("[INFO][account_routes] 账户路由已注册 /accounts");
     Router::new()
         .route("/accounts", post(create_account_handler).get(get_accounts_handler))
 }

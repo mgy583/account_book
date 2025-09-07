@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "@ant-design/charts": "^2.6.4",
+    "dayjs": "^1.11.18"
+  }
+}

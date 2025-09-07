@@ -6,13 +6,11 @@ export default defineConfig({
   server: {
     port: 5173,
     proxy: {
-  "/accounts": "http://localhost:3000",
-  "/categories": "http://localhost:3000",
-  "/assets": "http://localhost:3000",
-  "/transactions": "http://localhost:3000",
-  "/budgets": "http://localhost:3000",
-  "/register": "http://localhost:3000",
-  "/login": "http://localhost:3000",
+      '/api': {
+        target: 'http://localhost:3000', // Rust后端服务端口
+        changeOrigin: true,
+        rewrite: path => path.replace(/^\/api/, '/api'),
+      },
     },
   },
 });

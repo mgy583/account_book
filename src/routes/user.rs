@@ -60,12 +60,31 @@ async fn register(State(db): State<Arc<MongoDB>>, Json(payload): Json<RegisterPa
 
 async fn login(State(db): State<Arc<MongoDB>>, Json(payload): Json<LoginPayload>) -> (StatusCode, axum::Json<TokenResponse>) {
     let users: Collection<User> = db.users_collection();
-    let user_opt = users.find_one(doc! {"username": &payload.username}).await.unwrap();
-    if let Some(user) = user_opt {
-        if verify(&payload.password, &user.password).unwrap() {
-            let token = create_jwt(&user.id);
-            return (StatusCode::OK, Json(TokenResponse { token }));
+    match users.find_one(doc! {"username": &payload.username}).await {
+        Ok(user_opt) => {
+            if let Some(user) = user_opt {
+                match verify(&payload.password, &user.password) {
+                    Ok(valid) => {
+                        if valid {
+                            let token = create_jwt(&user.id);
+                            return (StatusCode::OK, Json(TokenResponse { token }));
+                        } else {
+                            println!("[登录] 密码错误: {}", &payload.username);
+                        }
+                    },
+                    Err(e) => {
+                        println!("[登录] 密码校验异常: {}", e);
+                        return (StatusCode::INTERNAL_SERVER_ERROR, Json(TokenResponse { token: "密码校验异常".to_string() }));
+                    }
+                }
+            } else {
+                println!("[登录] 用户不存在: {}", &payload.username);
+            }
+            (StatusCode::UNAUTHORIZED, Json(TokenResponse { token: "用户名或密码错误".to_string() }))
+        },
+        Err(e) => {
+            println!("[登录] 数据库查询异常: {}", e);
+            (StatusCode::INTERNAL_SERVER_ERROR, Json(TokenResponse { token: "数据库查询异常".to_string() }))
         }
     }
-    (StatusCode::UNAUTHORIZED, Json(TokenResponse { token: "用户名或密码错误".to_string() }))
 }

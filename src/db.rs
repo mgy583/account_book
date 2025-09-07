@@ -109,10 +109,11 @@ impl MongoDB {
     }
 
     // 订单相关
-    pub async fn create_order(&self, user_id: ObjectId, order_type: String, amount: f64, currency: String, date: DateTime, remark: Option<String>) -> DBResult<Order> {
+    pub async fn create_order(&self, user_id: ObjectId, name: String, order_type: String, amount: f64, currency: String, date: DateTime, remark: Option<String>) -> DBResult<Order> {
         let order = Order {
             id: ObjectId::new(),
             user_id,
+            name,
             order_type,
             amount,
             currency,

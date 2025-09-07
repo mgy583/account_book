@@ -9,6 +9,7 @@ use crate::routes::account::ApiError;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct CreateOrder {
+    pub name: String,
     pub order_type: String, // 消费/收入/转账
     pub amount: f64,
     pub currency: String,   // 币种
@@ -33,6 +34,7 @@ pub async fn create_order_handler(
     let date = mongodb::bson::DateTime::parse_rfc3339_str(&payload.date).map_err(|e| ApiError { message: e.to_string() })?;
     let order = db.create_order(
         user_id,
+        payload.name,
         payload.order_type,
         payload.amount,
         payload.currency,

@@ -20,12 +20,7 @@ async fn main() -> anyhow::Result<()> {
         .allow_headers([axum::http::header::CONTENT_TYPE]);
 
     let app = Router::new()
-        .merge(routes::account::account_routes())
-        .merge(routes::category::category_routes())
-        .merge(routes::asset::asset_routes())
-        .merge(routes::transaction::order_routes())
-        .merge(routes::budget::budget_routes())
-        .merge(routes::user::user_routes())
+        .nest("/api", routes::api::api_routes())
         .with_state(db)
         .layer(cors);
 

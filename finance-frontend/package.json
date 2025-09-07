@@ -9,16 +9,19 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@ant-design/charts": "^2.6.4",
     "antd": "^5.13.0",
     "axios": "^1.6.8",
+    "dayjs": "^1.11.18",
+    "numeral": "^2.0.6",
     "react": "^18.2.0",
     "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "@types/react": "^18.2.15",
     "@types/react-dom": "^18.2.7",
+    "@vitejs/plugin-react": "^4.2.1",
     "typescript": "^5.4.5",
-    "vite": "^5.2.8",
-    "@vitejs/plugin-react": "^4.2.1"
+    "vite": "^5.2.8"
   }
 }

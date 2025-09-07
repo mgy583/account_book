@@ -10,8 +10,8 @@ export default function LoginPage({ onLogin, onShowRegister }: { onLogin: () => 
     try {
       const values = await form.validateFields();
       setLoading(true);
-      // 假设后端登录接口为 /login，返回 { token: string }
-      const res = await api.post('/login', values);
+  // 假设后端登录接口为 /user/login，返回 { token: string }
+  const res = await api.post('/user/login', values);
       sessionStorage.setItem('token', res.data.token);
       message.success('登录成功');
       onLogin();

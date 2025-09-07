@@ -1,0 +1,28 @@
+.order-bg {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #e0f7fa 0%, #f6faff 100%);
+}
+.order-card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 4px 24px #e6f7ff;
+  padding: 32px 24px 24px 24px;
+}
+.order-footer {
+  text-align: center;
+  color: #bfbfbf;
+  font-size: 14px;
+  margin: 32px 0 0 0;
+  letter-spacing: 1px;
+}
+.ant-table {
+  background: #fff !important;
+  border-radius: 12px !important;
+}
+.ant-modal-content {
+  border-radius: 16px !important;
+}
+.ant-btn-primary {
+  background: linear-gradient(90deg, #1890ff 60%, #40a9ff 100%);
+  border: none;
+}

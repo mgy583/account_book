@@ -19,6 +19,7 @@ pub async fn create_category_handler(
     AuthUser(user_id): AuthUser,
     Json(payload): Json<CreateCategory>,
 ) -> Result<Json<Category>, ApiError> {
+    println!("[INFO][create_category_handler] payload: {:?}", payload);
     let parent_id = payload.parent_id.and_then(|id| mongodb::bson::oid::ObjectId::parse_str(&id).ok());
     let category = db.create_category(
         user_id,
@@ -26,6 +27,7 @@ pub async fn create_category_handler(
         parent_id,
         payload.category_type,
     ).await?;
+    println!("[INFO][create_category_handler] db_category: {:?}", category);
     Ok(Json(category))
 }
 
@@ -33,11 +35,14 @@ pub async fn get_categories_handler(
     State(db): State<Arc<MongoDB>>,
     AuthUser(user_id): AuthUser,
 ) -> Result<Json<Vec<Category>>, ApiError> {
+    println!("[INFO][get_categories_handler] user_id: {:?}", user_id);
     let categories = db.get_categories_by_user(user_id).await?;
+    println!("[INFO][get_categories_handler] categories count: {}", categories.len());
     Ok(Json(categories))
 }
 
 pub fn category_routes() -> Router<Arc<MongoDB>> {
+    println!("[INFO][category_routes] 分类路由已注册 /categories");
     Router::new()
         .route("/categories", post(create_category_handler).get(get_categories_handler))
 }

@@ -6,7 +6,10 @@ export function getToken() {
 }
 
 // 创建 axios 实例，自动加上 Authorization 头
-const api = axios.create();
+// 注意：所有业务接口都需加模块前缀，如 /user/login、/order/xxx、/order_query/orders/query
+const api = axios.create({
+  baseURL: '/api',
+});
 
 api.interceptors.request.use(config => {
   const token = getToken();
