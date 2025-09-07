@@ -1,118 +1,38 @@
-use tower_http::cors::{CorsLayer, Any};
-use tracing::info;
-use axum::{
-    Json, Router, extract::{State, Path}, http::{StatusCode, header::{HeaderValue, CONTENT_TYPE}}, response::IntoResponse,
-    response::Response, routing::get,
-    routing::delete,
-};
-use serde::{Deserialize, Serialize};
+use axum::{Router};
+mod auth;
 use std::sync::Arc;
+use tower_http::cors::{CorsLayer, Any};
 mod db;
-use db::{MongoDB};
-
-#[derive(Deserialize, Serialize, Clone, Debug)]
-struct CreateTodo {
-    text: String,
-}
-
-// error
-#[derive(Serialize, Debug)]
-struct AppError {
-    message: String,
-}
-
-impl<E: Into<anyhow::Error>> From<E> for AppError {
-    fn from(error: E) -> Self {
-        AppError {
-            message: error.into().to_string(),
-        }
-    }
-}
-
-impl IntoResponse for AppError {
-    fn into_response(self) -> Response {
-        let body = axum::Json(self);
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            [(CONTENT_TYPE, HeaderValue::from_static("application/json; charset=utf-8"))],
-            body
-        ).into_response()
-    }
-}
-
-async fn list_todos(State(db): State<Arc<MongoDB>>) -> Result<impl IntoResponse, AppError> {
-    info!("GET /todos");
-    let todos = db.get_todos().await?;
-    Ok((
-        StatusCode::OK,
-        [(
-            CONTENT_TYPE,
-            HeaderValue::from_static("application/json; charset=utf-8"),
-        )],
-        Json(todos),
-    ))
-}
-
-async fn create_todo(
-    State(db): State<Arc<MongoDB>>,
-    Json(payload): Json<CreateTodo>,
-) -> Result<impl IntoResponse, AppError> {
-    info!("POST /todos");
-    let todo = db.create_todo(payload.text).await?;
-    Ok((
-        StatusCode::CREATED,
-        [(
-            CONTENT_TYPE,
-            HeaderValue::from_static("application/json; charset=utf-8"),
-        )],
-        Json(todo),
-    ))
-}
-
-async fn delete_todo(
-    State(db): State<Arc<MongoDB>>,
-    Path(id): Path<String>,
-) -> Result<StatusCode, AppError> {
-    info!("DELETE /todos/{}", id);
-    let oid = mongodb::bson::oid::ObjectId::parse_str(&id)
-        .map_err(|_| AppError {
-            message: "Invalid ID format".to_string(),
-        })?;
-    
-    db.delete_todo(&oid).await?;
-    Ok(StatusCode::NO_CONTENT)
-}
+mod models;
+mod routes;
+use db::MongoDB;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    tracing_subscriber::fmt::init();
-
-    // 初始化 MongoDB
-    let db = MongoDB::new(
-        "mongodb://localhost:27017",
-        "todo_app"
-    )
-        .await
-        .map_err(|e| anyhow::anyhow!(e))?;
+    println!("[启动] 理财系统服务启动中...");
+    let db = MongoDB::new("mongodb://localhost:27017", "finance").await?;
+    println!("[启动] MongoDB 连接成功，数据库: finance");
     let db = Arc::new(db);
 
     let cors = CorsLayer::new()
         .allow_origin(Any)
-        .allow_methods([
-            axum::http::Method::GET,
-            axum::http::Method::POST,
-            axum::http::Method::DELETE,
-        ])
+        .allow_methods([axum::http::Method::GET, axum::http::Method::POST])
         .allow_headers([axum::http::header::CONTENT_TYPE]);
 
     let app = Router::new()
-        .route("/todos", get(list_todos).post(create_todo))
-        .route("/todos/{id}", delete(delete_todo))
+        .merge(routes::account::account_routes())
+        .merge(routes::category::category_routes())
+        .merge(routes::asset::asset_routes())
+        .merge(routes::transaction::order_routes())
+        .merge(routes::budget::budget_routes())
+        .merge(routes::user::user_routes())
         .with_state(db)
         .layer(cors);
 
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await?;
+    let addr = "0.0.0.0:3000";
+    println!("[启动] 服务监听地址: http://{}", addr);
+    let listener = tokio::net::TcpListener::bind(addr).await?;
+    println!("[启动] 服务已启动，等待请求...");
     axum::serve(listener, app).await?;
-
     Ok(())
 }

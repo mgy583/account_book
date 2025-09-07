@@ -1,98 +1,163 @@
-// src/db.rs
-use mongodb::{
-    bson::{doc, oid::ObjectId},
-    options::FindOptions,
-    Client, Collection,
-};
-use serde::{Deserialize, Serialize};
-use thiserror::Error;
-use futures::stream::StreamExt;
+use crate::models::user::User;
+use crate::models::account::Account;
+use crate::models::category::Category;
+use crate::models::asset::Asset;
+use crate::models::transaction::Order;
+use crate::models::budget::Budget;
+use mongodb::{Client, Collection};
+use mongodb::bson::doc;
+use futures::stream::TryStreamExt;
+use mongodb::bson::{oid::ObjectId, DateTime};
 
-#[derive(Error, Debug)]
-pub enum DBError {
-    #[error("MongoDB error: {0}")]
-    MongoError(#[from] mongodb::error::Error),
-    
-    #[error("Invalid ID: {0}")]
-    InvalidId(String),
-    
-    #[error("Document not found")]
-    NotFound,
-}
-
-pub type DBResult<T> = Result<T, DBError>;
-
-#[derive(Clone)]
+type DBResult<T> = Result<T, mongodb::error::Error>;
 pub struct MongoDB {
     client: Client,
-    db_name: String,
+    pub db: mongodb::Database,
+    pub accounts: Collection<Account>,
+    pub categories: Collection<Category>,
+    pub assets: Collection<Asset>,
+    pub orders: Collection<Order>,
+    pub budgets: Collection<Budget>,
 }
 
 impl MongoDB {
     pub async fn new(uri: &str, db_name: &str) -> DBResult<Self> {
         let client = Client::with_uri_str(uri).await?;
+        let db = client.database(db_name);
         Ok(Self {
             client,
-            db_name: db_name.to_string(),
+            db: db.clone(),
+            accounts: db.collection::<Account>("accounts"),
+            categories: db.collection::<Category>("categories"),
+            assets: db.collection::<Asset>("assets"),
+            orders: db.collection::<Order>("orders"),
+            budgets: db.collection::<Budget>("budgets"),
         })
     }
-    
-    fn collection<T: Send + Sync>(&self, name: &str) -> Collection<T> {
-        self.client.database(&self.db_name).collection(name)
-    }
-    
-    // Todo 相关操作
-    pub async fn get_todos(&self) -> DBResult<Vec<Todo>> {
-        let collection = self.collection::<Todo>("todos");
-        let options = FindOptions::builder()
-            .sort(doc! { "id": 1 })
-            .build();
-        
-        let mut cursor = collection.find(doc! {}).await.map_err(DBError::MongoError)?;
-        let mut todos = Vec::new();
-        
-        while let Some(todo) = cursor.next().await {
-            let todo = todo.map_err(DBError::MongoError)?;
-            todos.push(todo);
-        }
-        
-        Ok(todos)
-    }
-    
-    pub async fn create_todo(&self, text: String) -> DBResult<Todo> {
-        let collection = self.collection::<Todo>("todos");
-        
-        // 获取下一个ID
-    let count = collection.count_documents(doc! {}).await.map_err(DBError::MongoError)?;
-        let id = count as u32 + 1;
-        
-        let todo = Todo {
-            id: Some(ObjectId::new()),
-            text,
-            done: false,
-        };
-        
-    collection.insert_one(&todo).await.map_err(DBError::MongoError)?;
-        Ok(todo)
-    }
-    
-    pub async fn delete_todo(&self, id: &ObjectId) -> DBResult<()> {
-        let collection = self.collection::<Todo>("todos");
-        let filter = doc! { "_id": id };
-        
-    let result = collection.delete_one(filter).await.map_err(DBError::MongoError)?;
-        if result.deleted_count == 0 {
-            return Err(DBError::NotFound);
-        }
-        
-        Ok(())
-    }
-}
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct Todo {
-    #[serde(rename = "_id", skip_serializing_if = "Option::is_none")]
-    pub id: Option<ObjectId>,
-    pub text: String,
-    pub done: bool,
+    pub fn users_collection(&self) -> mongodb::Collection<User> {
+        self.db.collection::<User>("users")
+    }
+    // 账户相关
+    pub async fn create_account(&self, user_id: ObjectId, name: String, account_type: String, balance: f64, currency: String, remark: Option<String>) -> DBResult<Account> {
+        let account = Account {
+            id: ObjectId::new(),
+            user_id,
+            name,
+            account_type,
+            balance,
+            currency,
+            remark,
+        };
+        self.accounts.insert_one(&account).await?;
+        Ok(account)
+    }
+    pub async fn get_accounts_by_user(&self, user_id: ObjectId) -> DBResult<Vec<Account>> {
+        let mut cursor = self.accounts.find(doc! {"user_id": &user_id}).await?;
+        let mut accounts = Vec::new();
+        while let Some(account) = cursor.try_next().await? {
+            accounts.push(account);
+        }
+        Ok(accounts)
+    }
+
+    // 分类相关
+    pub async fn create_category(&self, user_id: ObjectId, name: String, parent_id: Option<ObjectId>, category_type: String) -> DBResult<Category> {
+        let category = Category {
+            id: ObjectId::new(),
+            user_id,
+            name,
+            parent_id,
+            category_type,
+        };
+        self.categories.insert_one(&category).await?;
+        Ok(category)
+    }
+
+    pub async fn get_categories_by_user(&self, user_id: ObjectId) -> DBResult<Vec<Category>> {
+        let mut cursor = self.categories.find(doc! {"user_id": &user_id}).await?;
+        let mut categories = Vec::new();
+        while let Some(category) = cursor.try_next().await? {
+            categories.push(category);
+        }
+        Ok(categories)
+    }
+
+    // 资产相关
+    pub async fn create_asset(&self, user_id: ObjectId, name: String, asset_type: String, value: f64, currency: String, account_id: ObjectId, remark: Option<String>) -> DBResult<Asset> {
+        let asset = Asset {
+            id: ObjectId::new(),
+            user_id,
+            name,
+            asset_type,
+            value,
+            currency,
+            account_id,
+            remark,
+        };
+        self.assets.insert_one(&asset).await?;
+        Ok(asset)
+    }
+
+    pub async fn get_assets_by_user(&self, user_id: ObjectId) -> DBResult<Vec<Asset>> {
+        let mut cursor = self.assets.find(doc! {"user_id": &user_id}).await?;
+        let mut assets = Vec::new();
+        while let Some(asset) = cursor.try_next().await? {
+            assets.push(asset);
+        }
+        Ok(assets)
+    }
+
+    // 订单相关
+    pub async fn create_order(&self, user_id: ObjectId, order_type: String, amount: f64, currency: String, date: DateTime, remark: Option<String>) -> DBResult<Order> {
+        let order = Order {
+            id: ObjectId::new(),
+            user_id,
+            order_type,
+            amount,
+            currency,
+            date,
+            remark,
+        };
+        self.orders.insert_one(&order).await?;
+        Ok(order)
+    }
+
+    pub async fn get_orders_by_user(&self, user_id: ObjectId) -> DBResult<Vec<Order>> {
+        let mut cursor = self.orders.find(doc! {"user_id": &user_id}).await?;
+        let mut orders = Vec::new();
+        while let Some(order) = cursor.try_next().await? {
+            orders.push(order);
+        }
+        Ok(orders)
+    }
+
+    pub async fn delete_order(&self, user_id: ObjectId, order_id: ObjectId) -> DBResult<bool> {
+    let res = self.orders.delete_one(doc! {"user_id": &user_id, "_id": order_id}).await?;
+        Ok(res.deleted_count > 0)
+    }
+
+    // 预算相关
+    pub async fn create_budget(&self, user_id: ObjectId, category_id: ObjectId, amount: f64, period: String, start_date: DateTime, end_date: DateTime) -> DBResult<Budget> {
+        let budget = Budget {
+            id: ObjectId::new(),
+            user_id,
+            category_id,
+            amount,
+            period,
+            start_date,
+            end_date,
+        };
+        self.budgets.insert_one(&budget).await?;
+        Ok(budget)
+    }
+
+    pub async fn get_budgets_by_user(&self, user_id: ObjectId) -> DBResult<Vec<Budget>> {
+        let mut cursor = self.budgets.find(doc! {"user_id": &user_id}).await?;
+        let mut budgets = Vec::new();
+        while let Some(budget) = cursor.try_next().await? {
+            budgets.push(budget);
+        }
+        Ok(budgets)
+    }
 }
