@@ -133,8 +133,8 @@ impl MongoDB {
         Ok(orders)
     }
 
-    pub async fn delete_order(&self, user_id: ObjectId, order_id: ObjectId) -> DBResult<bool> {
-    let res = self.orders.delete_one(doc! {"user_id": &user_id, "_id": order_id}).await?;
+    pub async fn delete_order(&self, _user_id: ObjectId, order_id: ObjectId) -> DBResult<bool> {
+        let res = self.orders.delete_one(doc! {"id": order_id}).await?;
         Ok(res.deleted_count > 0)
     }
 
