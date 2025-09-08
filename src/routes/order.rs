@@ -34,7 +34,6 @@ pub async fn create_order_handler(
     AxumJson(payload): AxumJson<CreateOrder>,
 ) -> Json<DbOrder> {
     println!("[INFO][create_order_handler] 收到前端payload: {:?}", payload);
-    // 支持 'YYYY-MM-DD' 或 RFC3339 字符串，优先用用户选择的日期
     let date = if let Ok(dt) = DateTime::parse_rfc3339_str(&payload.date) {
         dt
     } else if let Ok(naive) = chrono::NaiveDate::parse_from_str(&payload.date, "%Y-%m-%d") {

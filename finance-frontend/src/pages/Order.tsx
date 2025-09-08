@@ -228,7 +228,7 @@ export default function OrderPage({ onLogout, onSwitchUser }: { onLogout: () => 
             { title: '类型', dataIndex: 'type', align: 'center', render: v => <span style={{ color: '#52c41a', fontWeight: 500 }}>{v}</span> },
             { title: '金额', dataIndex: 'amount', align: 'center', render: v => <span style={{ color: '#faad14', fontWeight: 700 }}>{v}</span> },
             { title: '币种', dataIndex: 'currency', align: 'center' },
-            { title: '日期', dataIndex: 'date', align: 'center' },
+            { title: '日期', dataIndex: 'date', align: 'center', render: v => v ? dayjs(v).format('YYYY-MM-DD') : '' },
             { title: '备注', dataIndex: 'remark', align: 'center' },
             {
               title: '操作',
