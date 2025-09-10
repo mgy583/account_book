@@ -21,8 +21,8 @@
 
 ### 2. 启动后端（Rust）
 
-```powershell
-cd todo_list
+```bash
+cd account_book
 cargo run
 ```
 
@@ -30,7 +30,7 @@ cargo run
 
 ### 3. 启动前端（React）
 
-```powershell
+```bash
 cd finance-frontend
 npm install
 npm run dev
